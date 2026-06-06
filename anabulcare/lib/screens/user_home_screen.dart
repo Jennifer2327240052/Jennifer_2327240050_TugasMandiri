@@ -4,9 +4,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:anabulcare/models/post.dart';
 import 'package:anabulcare/services/post_service.dart';
 import 'package:anabulcare/screens/detail_screen.dart';
+import 'package:anabulcare/screens/add_post_screen.dart';
 
 class UserHomeScreen extends StatefulWidget {
-  const UserHomeScreen({super.key});
+  const UserHomeScreen({Key? key}) : super(key: key);
 
   @override
   State<UserHomeScreen> createState() => _UserHomeScreenState();
@@ -50,7 +51,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     }
   }
 
-  // 2. Menghitung jarak numerik (meter) antara posisi user dengan koordinat Coffee Shop
+  // 2. Menghitung jarak numerik (meter) antara posisi pengguna dengan lokasi laporan
   double _getRawDistance(String? latStr, String? lngStr) {
     if (_currentPosition == null || latStr == null || lngStr == null)
       return double.maxFinite;
@@ -81,17 +82,19 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
         title: const Text(
-          "Coffee Shop",
+          "Anabul Care",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.brown,
+        backgroundColor: Color(0xFF1A5F7A),
         foregroundColor: Colors.white,
       ),
       body: _isLoadingLocation
-          ? const Center(child: CircularProgressIndicator(color: Colors.brown))
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF1A5F7A)),
+            )
           : Column(
               children: [
-                // Kolom Pencarian Nama Kedai Kopi
+                // Kolom Pencarian Laporan Hewan Hilang
                 Container(
                   color: Colors.white,
                   padding: const EdgeInsets.all(12),
@@ -99,8 +102,11 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                     onChanged: (val) =>
                         setState(() => _searchQuery = val.toLowerCase()),
                     decoration: InputDecoration(
-                      hintText: "Cari kedai kopi...",
-                      prefixIcon: const Icon(Icons.search, color: Colors.brown),
+                      hintText: "Cari hewan hilang...",
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: Color(0xFF1A5F7A),
+                      ),
                       filled: true,
                       fillColor: Colors.grey.shade100,
                       border: OutlineInputBorder(
@@ -112,14 +118,16 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                   ),
                 ),
 
-                // Stream data Coffee Shop global dari Firebase
+                // Stream data laporan hewan hilang dari Firebase
                 Expanded(
                   child: StreamBuilder<List<Post>>(
                     stream: PostService.getPostListByCategory(''),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(
-                          child: CircularProgressIndicator(color: Colors.brown),
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF1A5F7A),
+                          ),
                         );
                       }
 
@@ -131,15 +139,17 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
 
                       var posts = snapshot.data ?? [];
 
-                      // Filter pencarian teks nama kedai kopi
+                      // Filter pencarian teks nama hewan atau deskripsi laporan
                       if (_searchQuery.isNotEmpty) {
-                        posts = posts
-                            .where(
-                              (p) => (p.name ?? '').toLowerCase().contains(
-                                _searchQuery,
-                              ),
-                            )
-                            .toList();
+                        posts = posts.where((p) {
+                          final name = p.name?.toLowerCase() ?? '';
+                          final description =
+                              p.description?.toLowerCase() ?? '';
+                          final category = p.category?.toLowerCase() ?? '';
+                          return name.contains(_searchQuery) ||
+                              description.contains(_searchQuery) ||
+                              category.contains(_searchQuery);
+                        }).toList();
                       }
 
                       // LOGIKA URUTAN: Mengurutkan otomatis dari jarak yang PALING DEKAT ke PALING JAUH
@@ -152,7 +162,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                       if (posts.isEmpty) {
                         return const Center(
                           child: Text(
-                            "Tidak ada coffee shop ditemukan.",
+                            "Tidak ada hewan hilang ditemukan.",
                             style: TextStyle(color: Colors.grey),
                           ),
                         );
@@ -204,7 +214,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                                           color: Colors.grey.shade300,
                                           child: const Center(
                                             child: Icon(
-                                              Icons.storefront,
+                                              Icons.pets,
                                               size: 50,
                                               color: Colors.grey,
                                             ),
@@ -221,8 +231,9 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                                             vertical: 6,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: Colors.brown.shade800
-                                                .withOpacity(0.9),
+                                            color: Color(
+                                              0xFF2F586C,
+                                            ).withOpacity(0.9),
                                             borderRadius: BorderRadius.circular(
                                               30,
                                             ),
@@ -238,7 +249,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               const Icon(
-                                                Icons.near_me,
+                                                Icons.pets,
                                                 size: 14,
                                                 color: Colors.amberAccent,
                                               ),
@@ -268,7 +279,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          post.name ?? 'Coffee Shop',
+                                          post.name ?? 'Hewan Hilang',
                                           style: const TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
@@ -284,7 +295,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                                             ),
                                             const SizedBox(width: 6),
                                             Text(
-                                              "Jam Operasional: ${post.operationalHours ?? '-'}",
+                                              "Waktu Laporan: ${post.operationalHours ?? '-'}",
                                               style: const TextStyle(
                                                 fontSize: 13,
                                                 color: Colors.grey,
@@ -306,6 +317,23 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 ),
               ],
             ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: const Color(0xFF1A5F7A),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('Laporkan Hewan Hilang'),
+        onPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const AddPostScreen(isAdmin: false),
+            ),
+          );
+          if (result == true && mounted) {
+            setState(() {});
+          }
+        },
+      ),
     );
   }
 }

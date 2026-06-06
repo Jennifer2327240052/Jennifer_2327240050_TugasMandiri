@@ -6,6 +6,7 @@ class Post {
   String? name;
   String? description;
   String? category;
+  String? ownerPhone;
   Timestamp? createdAt;
   Timestamp? updatedAt;
   String? latitude;
@@ -27,6 +28,7 @@ class Post {
     this.operationalHours,
     this.userId,
     this.userFullName,
+    this.ownerPhone,
   });
 
   factory Post.fromMap(Map<String, dynamic> map) {
@@ -43,6 +45,7 @@ class Post {
       operationalHours: map['operationalHours'] ?? map['operational_hours'],
       userId: map['userId'] ?? map['user_id'],
       userFullName: map['userFullName'] ?? map['user_full_name'],
+      ownerPhone: map['ownerPhone'] ?? map['owner_phone'],
     );
   }
 
@@ -60,6 +63,7 @@ class Post {
       'operationalHours': operationalHours,
       'userId': userId,
       'userFullName': userFullName,
+      'ownerPhone': ownerPhone,
     };
   }
 }

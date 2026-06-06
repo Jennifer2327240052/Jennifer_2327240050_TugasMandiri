@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:anabulcare/models/post.dart';
 import 'package:anabulcare/screens/detail_screen.dart';
@@ -16,7 +16,7 @@ class FavoriteScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Coffee Shop Favorit'),
-        backgroundColor: Colors.brown,
+        backgroundColor: Color(0xFF1A5F7A),
       ),
       body: currentUser == null
           ? const Center(
@@ -29,7 +29,7 @@ class FavoriteScreen extends StatelessWidget {
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
-                    child: CircularProgressIndicator(color: Colors.brown),
+                    child: CircularProgressIndicator(color: Color(0xFF1A5F7A)),
                   );
                 }
 
@@ -137,3 +137,4 @@ class FavoriteScreen extends StatelessWidget {
     );
   }
 }
+

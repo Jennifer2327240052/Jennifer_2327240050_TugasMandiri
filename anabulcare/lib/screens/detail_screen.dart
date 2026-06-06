@@ -124,7 +124,7 @@ class _DetailScreenState extends State<DetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.post.name ?? 'Detail Coffee Shop'),
-        backgroundColor: Colors.brown,
+        backgroundColor: Color(0xFF1A5F7A),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -175,16 +175,16 @@ class _DetailScreenState extends State<DetailScreen> {
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Colors.brown,
+                      color: Color(0xFF1A5F7A),
                     ),
                   ),
                   const SizedBox(height: 8),
                   if (widget.post.category != null)
                     Chip(
                       label: Text(widget.post.category!),
-                      backgroundColor: Colors.brown.shade50,
+                      backgroundColor: Color(0xFFEAF4F7),
                       labelStyle: TextStyle(
-                        color: Colors.brown.shade700,
+                        color: Color(0xFF375F74),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -238,7 +238,7 @@ class _DetailScreenState extends State<DetailScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.brown,
+                      color: Color(0xFF1A5F7A),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -266,7 +266,7 @@ class _DetailScreenState extends State<DetailScreen> {
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.brown,
+                        backgroundColor: Color(0xFF1A5F7A),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       icon: const Icon(Icons.map, color: Colors.white),
@@ -317,7 +317,7 @@ class _DetailScreenState extends State<DetailScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.brown,
+                          color: Color(0xFF1A5F7A),
                         ),
                       ),
                       if (currentUserId != null &&
@@ -343,12 +343,12 @@ class _DetailScreenState extends State<DetailScreen> {
                           },
                           icon: const Icon(
                             Icons.rate_review,
-                            color: Colors.brown,
+                            color: Color(0xFF1A5F7A),
                           ),
                           label: const Text(
                             "Beri Ulasan",
                             style: TextStyle(
-                              color: Colors.brown,
+                              color: Color(0xFF1A5F7A),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -418,7 +418,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.brown.shade50,
+                                    color: Color(0xFFEAF4F7),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Row(
@@ -468,7 +468,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                         Row(
                                           children: [
                                             const CircleAvatar(
-                                              backgroundColor: Colors.brown,
+                                              backgroundColor: Color(0xFF1A5F7A),
                                               radius: 14,
                                               child: Icon(
                                                 Icons.person,
@@ -527,3 +527,4 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 }
+

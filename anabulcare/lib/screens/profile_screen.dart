@@ -103,7 +103,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Center(
                     child: CircleAvatar(
                       radius: 50,
-                      backgroundColor: Colors.brown.shade200,
+                      backgroundColor: Color(0xFFB1D3E0),
                       child: Text(
                         initials,
                         style: const TextStyle(
@@ -146,7 +146,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         decoration: BoxDecoration(
                           color: _isDarkMode
                               ? Colors.grey[800]
-                              : Colors.brown.shade50,
+                              : Color(0xFFEAF4F7),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -280,3 +280,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
+

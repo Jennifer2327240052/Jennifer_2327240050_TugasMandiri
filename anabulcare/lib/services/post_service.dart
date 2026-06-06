@@ -13,6 +13,7 @@ class PostService {
       'image': post.image,
       'description': post.description,
       'category': post.category,
+      'owner_phone': post.ownerPhone,
       'latitude': post.latitude,
       'longitude': post.longitude,
       'operationalHours': post.operationalHours,
@@ -29,6 +30,7 @@ class PostService {
       'image': post.image,
       'description': post.description,
       'category': post.category,
+      'owner_phone': post.ownerPhone,
       'latitude': post.latitude,
       'longitude': post.longitude,
       'operationalHours': post.operationalHours,
@@ -71,6 +73,7 @@ class PostService {
               data['operationalHours'] ?? data['operational_hours'],
           userId: data['user_id'],
           userFullName: data['user_full_name'],
+          ownerPhone: data['owner_phone'],
         );
         // create function getPostListByCategory dng parameter category
       }).toList();

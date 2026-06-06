@@ -26,7 +26,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           "Selamat Datang, Admin!",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.brown,
+        backgroundColor: Color(0xFF1A5F7A),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -53,7 +53,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
-            color: Colors.brown.shade50,
+            color: Color(0xFFEAF4F7),
             child: const Text(
               "Kelola daftar coffee shop Anda yang terdaftar di Palembang melalui halaman ini.",
               style: TextStyle(fontSize: 13, color: Colors.grey),
@@ -76,7 +76,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
-                    child: CircularProgressIndicator(color: Colors.brown),
+                    child: CircularProgressIndicator(color: Color(0xFF1A5F7A)),
                   );
                 }
 
@@ -125,7 +125,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
       // Tombol mengarah ke halaman add_post_screen.dart dengan membawa data role Admin
       floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.brown,
+        backgroundColor: Color(0xFF1A5F7A),
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
         onPressed: () async {
@@ -148,3 +148,4 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 }
+

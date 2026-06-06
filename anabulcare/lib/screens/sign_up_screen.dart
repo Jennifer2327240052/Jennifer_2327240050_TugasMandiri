@@ -15,6 +15,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -70,10 +71,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
             Container(
               margin: const EdgeInsets.only(top: 16.0),
               child: ElevatedButton(
-                onPressed: () {
-                  _registerAccount();
-                },
-                child: const Text('Daftar'),
+                onPressed: _isLoading ? null : _registerAccount,
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Daftar'),
               ),
             ),
           ],
@@ -82,34 +90,67 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  void _registerAccount() async {
-    if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password dan Konfirmasi Password Tidak Sama'),
-        ),
-      );
-    } else {
-      try {
-        //3. Buat variable userCredential dan set DisplayName
-        UserCredential userCredential = await FirebaseAuth.instance
-            .createUserWithEmailAndPassword(
-              email: _emailController.text,
-              password: _passwordController.text,
-            );
-        userCredential.user?.updateDisplayName(_nameController.text);
+  void _showSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
 
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const SignInScreen()),
-          );
-        }
-      } on FirebaseAuthException catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Gagal Mendaftar : ${e.message}')),
-          );
-        }
+  void _registerAccount() async {
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    if (name.isEmpty ||
+        email.isEmpty ||
+        password.isEmpty ||
+        confirmPassword.isEmpty) {
+      _showSnackBar('Semua field harus diisi.');
+      return;
+    }
+
+    if (!email.contains('@')) {
+      _showSnackBar('Masukkan email yang valid.');
+      return;
+    }
+
+    if (password != confirmPassword) {
+      _showSnackBar('Password dan Konfirmasi Password Tidak Sama');
+      return;
+    }
+
+    if (password.length < 6) {
+      _showSnackBar('Password harus terdiri dari minimal 6 karakter.');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
+
+      await userCredential.user?.updateDisplayName(name);
+      await userCredential.user?.reload();
+
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const SignInScreen()),
+      );
+    } on FirebaseAuthException catch (e) {
+      final errorMessage = e.message ?? 'Terjadi kesalahan saat mendaftar.';
+      _showSnackBar('Gagal Mendaftar: $errorMessage');
+    } catch (e) {
+      _showSnackBar('Gagal Mendaftar: ${e.toString()}');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }

@@ -125,6 +125,31 @@ const String _adminLoggedInKey = 'admin_logged_in';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // If the firebase_options file still contains placeholder values, stop
+  // and show a helpful message instead of attempting to initialize Firebase
+  // and failing at runtime. Run `flutterfire configure` or provide the
+  // proper configuration files (google-services.json / GoogleService-Info.plist).
+  if (!DefaultFirebaseOptions.isConfigured) {
+    runApp(
+      const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          body: Center(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Text(
+                'Firebase belum dikonfigurasi. Jalankan `flutterfire configure` atau tambahkan file google-services.json / GoogleService-Info.plist.\n\nAplikasi akan tetap berjalan setelah konfigurasi lengkap.',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    return;
+  }
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await requestNotificationPermission();
 
@@ -160,7 +185,7 @@ class MyApp extends StatelessWidget {
     final appProvider = Provider.of<AppProvider>(context);
 
     return MaterialApp(
-      title: "CoffeeShop Finder",
+      title: "Anabul care",
       debugShowCheckedModeBanner: false,
 
       // Menggunakan Tema dari file app_theme.dart
@@ -184,7 +209,7 @@ class MyApp extends StatelessWidget {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(
               body: Center(
-                child: CircularProgressIndicator(color: Colors.brown),
+                child: CircularProgressIndicator(color: Color(0xFF1A5F7A)),
               ),
             );
           }
@@ -220,7 +245,9 @@ class AuthWrapper extends StatelessWidget {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator(color: Colors.brown)),
+            body: Center(
+              child: CircularProgressIndicator(color: Color(0xFF1A5F7A)),
+            ),
           );
         }
 

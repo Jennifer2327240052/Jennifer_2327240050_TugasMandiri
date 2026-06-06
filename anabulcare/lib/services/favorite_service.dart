@@ -79,3 +79,4 @@ class FavoriteService {
         .delete();
   }
 }
+

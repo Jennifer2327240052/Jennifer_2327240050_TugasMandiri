@@ -62,3 +62,4 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
     );
   }
 }
+

@@ -9,8 +9,9 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 class AddPostScreen extends StatefulWidget {
-  final bool isAdmin; // True: Admin tambah kedai, False: Pengguna tambah ulasan
-  final Post? coffeeShop; // diperlukan jika status isAdmin = false (Pengguna)
+  final bool
+  isAdmin; // True: Admin tambah laporan, False: Pengguna lapor hewan hilang
+  final Post? coffeeShop; // tidak digunakan untuk laporan pengguna baru
 
   const AddPostScreen({super.key, required this.isAdmin, this.coffeeShop});
 
@@ -23,8 +24,9 @@ class _AddPostScreenState extends State<AddPostScreen> {
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _latitudeController = TextEditingController();
   final TextEditingController _longitudeController = TextEditingController();
+  final TextEditingController _ownerPhoneController = TextEditingController();
 
-  // Controller tambahan untuk Pengguna (Ulasan)
+  // Controller tambahan untuk mode pengguna lama, tidak dipakai lagi
   final TextEditingController _commentController = TextEditingController();
   int _selectedRating = 0; // Default rating bintang adalah 0
 
@@ -32,23 +34,16 @@ class _AddPostScreenState extends State<AddPostScreen> {
   String? _latitude;
   String? _longitude;
   String? _category;
-  TimeOfDay? _startTime; // Jam buka
-  TimeOfDay? _endTime; // Jam tutup
+  TimeOfDay? _startTime; // Jam buka (hanya untuk admin lama)
+  TimeOfDay? _endTime; // Jam tutup (hanya untuk admin lama)
   bool _isSubmitting = false;
   bool _isGettingLocation = false;
   bool _isGenerating = false;
   bool _isEditing = false;
 
-  // Kategori disesuaikan dengan tipe atau keunggulan Coffee Shop
+  // Kategori disesuaikan dengan jenis hewan hilang
   List<String> get categories {
-    return [
-      'Indoor AC (WFC Friendly)',
-      'Outdoor / Garden Vibe',
-      'Minimalis / Instagramable',
-      'Traditional / Manual Brew',
-      '24 Jam',
-      'Lainnya',
-    ];
+    return ['Kucing', 'Anjing', 'Burung', 'Kelinci', 'Reptil', 'Lainnya'];
   }
 
   // 1. Fungsi pick, dan convert Image
@@ -114,7 +109,11 @@ class _AddPostScreenState extends State<AddPostScreen> {
     } catch (e) {
       debugPrint('Failed to retrieve location: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Gagal mengambil lokasi Coffee Shop.")),
+        const SnackBar(
+          content: Text(
+            "Gagal mengambil lokasi. Pastikan izin lokasi sudah diberikan.",
+          ),
+        ),
       );
     } finally {
       if (mounted) {
@@ -200,8 +199,8 @@ class _AddPostScreenState extends State<AddPostScreen> {
         ),
         child: Text(
           widget.isAdmin
-              ? 'Belum ada foto Coffee Shop dipilih'
-              : 'Belum ada foto ulasan dipilih (Opsional)',
+              ? 'Belum ada foto laporan dipilih'
+              : 'Belum ada foto laporan dipilih (Opsional)',
         ),
       );
     }
@@ -240,30 +239,29 @@ class _AddPostScreenState extends State<AddPostScreen> {
       // ---------------- LOGIKA SUBMIT ADMIN ----------------
       if (_nameController.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Masukkan nama coffee shop.')),
+          const SnackBar(
+            content: Text('Masukkan nama atau jenis hewan hilang.'),
+          ),
         );
         return;
       }
       if (_base64Image == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pilih foto terlebih dahulu.')),
+          const SnackBar(
+            content: Text(
+              'Pilih foto hewan atau lokasi terakhir terlebih dahulu.',
+            ),
+          ),
         );
         return;
       }
       if (_category == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pilih kategori/suasana terlebih dahulu.'),
-          ),
+          const SnackBar(content: Text('Pilih jenis hewan terlebih dahulu.')),
         );
         return;
       }
-      if (_startTime == null || _endTime == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pilih jam buka dan tutup.')),
-        );
-        return;
-      }
+      // Lost animal reports do not require jam operasional
 
       setState(() {
         _isSubmitting = true;
@@ -281,7 +279,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                'Harap ambil atau masukkan lokasi Coffee Shop terlebih dahulu.',
+                'Harap ambil atau masukkan lokasi hewan hilang terlebih dahulu.',
               ),
             ),
           );
@@ -322,12 +320,14 @@ class _AddPostScreenState extends State<AddPostScreen> {
         if (!mounted) return;
 
         await sendNotificationToTopic(
-          "Yuk cek ${_nameController.text}! Tempat baru nih di Palembang.",
-          adminName ?? 'Admin',
+          "Laporan hewan hilang terkirim: ${_nameController.text}",
+          adminName ?? 'Pengguna',
         );
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Data Coffee Shop berhasil disimpan")),
+          const SnackBar(
+            content: Text("Laporan hewan hilang berhasil dikirim."),
+          ),
         );
         Navigator.of(context).pop(true);
       } catch (e) {
@@ -344,15 +344,19 @@ class _AddPostScreenState extends State<AddPostScreen> {
       }
     } else {
       // ---------------- LOGIKA SUBMIT PENGGUNA (ULASAN) ----------------
-      if (_commentController.text.trim().isEmpty) {
+      if (_nameController.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tuliskan komentar ulasan Anda.')),
+          const SnackBar(
+            content: Text('Masukkan nama atau jenis hewan hilang.'),
+          ),
         );
         return;
       }
-      if (widget.coffeeShop == null || widget.coffeeShop!.id == null) {
+      if (_descriptionController.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Data Coffee Shop tidak valid.')),
+          const SnackBar(
+            content: Text('Jelaskan lokasi atau kondisi terakhir hewan.'),
+          ),
         );
         return;
       }
@@ -362,30 +366,51 @@ class _AddPostScreenState extends State<AddPostScreen> {
       });
 
       try {
-        // Panggil service penampung sub-koleksi ulasan Anda di PostService
-        await PostService.addReviewToCoffeeShop(
-          coffeeShopId: widget.coffeeShop!.id!,
-          reviewData: {
-            'userId': adminId,
-            'userName': adminName ?? 'Pengguna Anonim',
-            'rating': _selectedRating,
-            'comment': _commentController.text.trim(),
-            'reviewImage': _base64Image ?? '',
-            'timestamp': DateTime.now().millisecondsSinceEpoch,
-          },
+        _updateLocationFromManualInput();
+
+        if (_latitude == null || _longitude == null) {
+          await _getLocation();
+        }
+
+        if (_latitude == null || _longitude == null) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Harap ambil atau masukkan lokasi hewan hilang terlebih dahulu.',
+              ),
+            ),
+          );
+          return;
+        }
+
+        final reportPost = Post(
+          id: null,
+          image: _base64Image,
+          name: _nameController.text.trim(),
+          description: _descriptionController.text.trim(),
+          category: _category,
+          latitude: _latitude,
+          longitude: _longitude,
+          operationalHours: DateTime.now().toLocal().toString(),
+          userId: adminId,
+          userFullName: adminName,
         );
 
-        if (!mounted) return;
+        await PostService.addPost(reportPost);
 
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Ulasan berhasil diterbitkan!")),
+          const SnackBar(
+            content: Text("Laporan hewan hilang berhasil dikirim."),
+          ),
         );
         Navigator.of(context).pop(true);
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text("Gagal mengirim ulasan: $e")));
+        ).showSnackBar(SnackBar(content: Text("Gagal mengirim laporan: $e")));
       } finally {
         if (mounted) {
           setState(() {
@@ -411,6 +436,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
       _longitude = p.longitude;
       _latitudeController.text = p.latitude ?? '';
       _longitudeController.text = p.longitude ?? '';
+      _ownerPhoneController.text = p.ownerPhone ?? '';
 
       // Parse operational hours (format: "HH:MM - HH:MM")
       if (p.operationalHours != null && p.operationalHours!.isNotEmpty) {
@@ -437,14 +463,14 @@ class _AddPostScreenState extends State<AddPostScreen> {
     }
   }
 
-  // 7. Fungsi AI: Generate deskripsi menarik otomatis berdasarkan foto Coffee Shop
+  // 7. Fungsi AI: Generate deskripsi menarik otomatis berdasarkan foto
   Future<void> _generateDescriptionWithAI() async {
     if (_base64Image == null) return;
     setState(() => _isGenerating = true);
     try {
-      const apikey = 'AAIzaSyBSp-oScLyZPU8RVSbRK1j5TaRrkwUeJVs';
+      const apikey = 'AQ.Ab8RN6KpErACNM-5iVwJVbh-yJ7iLmvKM5EFz0DuaFeVyIo1Xg';
       const url =
-          'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=$apikey';
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=$apikey';
 
       final body = jsonEncode({
         "contents": [
@@ -551,6 +577,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
     _descriptionController.dispose();
     _latitudeController.dispose();
     _longitudeController.dispose();
+    _ownerPhoneController.dispose();
     _commentController.dispose();
     super.dispose();
   }
@@ -561,10 +588,12 @@ class _AddPostScreenState extends State<AddPostScreen> {
       appBar: AppBar(
         title: Text(
           widget.isAdmin
-              ? (_isEditing ? 'Edit Coffee Shop' : 'Tambah Coffee Shop Baru')
-              : 'Tambah Ulasan Baru',
+              ? (_isEditing
+                    ? 'Edit Laporan Hewan'
+                    : 'Tambah Laporan Hewan Hilang')
+              : 'Tambah Laporan Hewan Hilang',
         ),
-        backgroundColor: Colors.brown,
+        backgroundColor: Color(0xFF1A5F7A),
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
@@ -584,7 +613,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
                         ? (_isGenerating
                               ? 'Menganalisis Foto...'
                               : 'Pilih Foto')
-                        : 'Pilih Foto Ulasan',
+                        : 'Pilih Foto Hewan',
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -603,13 +632,13 @@ class _AddPostScreenState extends State<AddPostScreen> {
 
             // ================= TAMPILAN KHUSUS ADMIN =================
             if (widget.isAdmin) ...[
-              // Input Nama Coffee Shop
+              // Input Nama atau jenis hewan hilang
               TextField(
                 controller: _nameController,
                 decoration: const InputDecoration(
-                  labelText: 'Nama Coffee Shop',
+                  labelText: 'Nama / Jenis Hewan',
                   border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.coffee),
+                  prefixIcon: Icon(Icons.pets),
                 ),
               ),
               const SizedBox(height: 16),
@@ -639,8 +668,8 @@ class _AddPostScreenState extends State<AddPostScreen> {
                         ],
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.brown.shade100,
-                        foregroundColor: Colors.brown,
+                        backgroundColor: Color(0xFFD7EBF1),
+                        foregroundColor: Color(0xFF1A5F7A),
                       ),
                     ),
                   ),
@@ -662,8 +691,8 @@ class _AddPostScreenState extends State<AddPostScreen> {
                         ],
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.brown.shade100,
-                        foregroundColor: Colors.brown,
+                        backgroundColor: Color(0xFFD7EBF1),
+                        foregroundColor: Color(0xFF1A5F7A),
                       ),
                     ),
                   ),
@@ -671,10 +700,10 @@ class _AddPostScreenState extends State<AddPostScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Pilih Kategori/Suasana
+              // Pilih jenis hewan / kategori laporan
               OutlinedButton(
                 onPressed: _isSubmitting ? null : _showCategorySelect,
-                child: const Text('Pilih Karakteristik / Suasana'),
+                child: const Text('Pilih Jenis Hewan'),
               ),
               const SizedBox(height: 8),
               Text(
@@ -682,7 +711,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Colors.brown,
+                  color: Color(0xFF1A5F7A),
                 ),
               ),
               const SizedBox(height: 16),
@@ -692,9 +721,9 @@ class _AddPostScreenState extends State<AddPostScreen> {
                 controller: _descriptionController,
                 maxLines: 4,
                 decoration: const InputDecoration(
-                  labelText: 'Deskripsi Coffee Shop',
+                  labelText: 'Deskripsi Laporan',
                   hintText:
-                      'Tuliskan deskripsi atau biarkan AI membuatkannya setelah foto diunggah',
+                      'Tuliskan ciri-ciri, warna, atau lokasi terakhir hewan hilang',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -768,44 +797,48 @@ class _AddPostScreenState extends State<AddPostScreen> {
             // ================= TAMPILAN KHUSUS PENGGUNA =================
             if (!widget.isAdmin) ...[
               Text(
-                "Berikan Ulasan untuk:\n${widget.coffeeShop?.name ?? 'Coffee Shop'}",
+                "Laporkan Hewan Hilang",
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.brown,
+                  color: Color(0xFF1A5F7A),
                 ),
               ),
               const SizedBox(height: 12),
 
-              // Selektor Rating Bintang
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  return IconButton(
-                    icon: Icon(
-                      index < _selectedRating ? Icons.star : Icons.star_border,
-                      color: Colors.amber,
-                      size: 36,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _selectedRating = index + 1;
-                      });
-                    },
-                  );
-                }),
+              TextField(
+                controller: _ownerPhoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Nomor WhatsApp/Telepon',
+                  hintText: 'Contoh: 081234567890',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.phone),
+                ),
               ),
               const SizedBox(height: 16),
 
-              // Input Komentar Ulasan
               TextField(
-                controller: _commentController,
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nama / Jenis Hewan',
+                  hintText:
+                      'Contoh: Kucing abu-abu, anjing golden retriever, burung parkit',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.pets),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Input detail laporan hewan hilang
+              TextField(
+                controller: _descriptionController,
                 maxLines: 4,
                 decoration: const InputDecoration(
-                  labelText: 'Komentar Ulasan',
+                  labelText: 'Detail Laporan',
                   hintText:
-                      'Bagikan pengalaman Anda mengenai rasa kopi, pelayanan, atau tempat ini...',
+                      'Cerita singkat tentang hewan hilang atau lokasi terakhir yang diketahui...',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -817,16 +850,14 @@ class _AddPostScreenState extends State<AddPostScreen> {
             ElevatedButton(
               onPressed: _isSubmitting ? null : _submitPost,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.brown.shade400,
+                backgroundColor: Color(0xFF6EA0B4),
               ),
               child: Text(
                 _isSubmitting
                     ? 'Menyimpan...'
                     : (widget.isAdmin
-                          ? (_isEditing
-                                ? 'Simpan Perubahan'
-                                : 'Publish Coffee Shop')
-                          : 'Kirim Ulasan'),
+                          ? (_isEditing ? 'Simpan Perubahan' : 'Kirim Laporan')
+                          : 'Kirim Laporan'),
                 style: const TextStyle(color: Colors.white),
               ),
             ),
