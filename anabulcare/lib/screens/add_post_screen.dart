@@ -1,0 +1,838 @@
+import 'dart:convert';
+
+import 'package:anabulcare/models/post.dart';
+import 'package:anabulcare/services/post_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+
+class AddPostScreen extends StatefulWidget {
+  final bool isAdmin; // True: Admin tambah kedai, False: Pengguna tambah ulasan
+  final Post? coffeeShop; // diperlukan jika status isAdmin = false (Pengguna)
+
+  const AddPostScreen({super.key, required this.isAdmin, this.coffeeShop});
+
+  @override
+  State<AddPostScreen> createState() => _AddPostScreenState();
+}
+
+class _AddPostScreenState extends State<AddPostScreen> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _latitudeController = TextEditingController();
+  final TextEditingController _longitudeController = TextEditingController();
+
+  // Controller tambahan untuk Pengguna (Ulasan)
+  final TextEditingController _commentController = TextEditingController();
+  int _selectedRating = 0; // Default rating bintang adalah 0
+
+  String? _base64Image;
+  String? _latitude;
+  String? _longitude;
+  String? _category;
+  TimeOfDay? _startTime; // Jam buka
+  TimeOfDay? _endTime; // Jam tutup
+  bool _isSubmitting = false;
+  bool _isGettingLocation = false;
+  bool _isGenerating = false;
+  bool _isEditing = false;
+
+  // Kategori disesuaikan dengan tipe atau keunggulan Coffee Shop
+  List<String> get categories {
+    return [
+      'Indoor AC (WFC Friendly)',
+      'Outdoor / Garden Vibe',
+      'Minimalis / Instagramable',
+      'Traditional / Manual Brew',
+      '24 Jam',
+      'Lainnya',
+    ];
+  }
+
+  // 1. Fungsi pick, dan convert Image
+  Future<void> pickImageAndConvert() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
+    if (image != null) {
+      final bytes = await image.readAsBytes();
+      setState(() {
+        _base64Image = base64Encode(bytes);
+        // AI otomatis mendeskripsikan suasana hanya jika dijalankan oleh Admin
+        if (widget.isAdmin) {
+          _generateDescriptionWithAI();
+        }
+      });
+    }
+  }
+
+  // 2. Fungsi Get Geo Location (Untuk mengukur jarak meter ke pengguna nantinya)
+  Future<void> _getLocation() async {
+    setState(() {
+      _isGettingLocation = true;
+    });
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Layanan lokasi dinonaktifkan.")),
+        );
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever ||
+          permission == LocationPermission.unableToDetermine) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Izin lokasi ditolak atau tidak tersedia."),
+          ),
+        );
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+
+      setState(() {
+        _latitude = position.latitude.toString();
+        _longitude = position.longitude.toString();
+        _latitudeController.text = _latitude!;
+        _longitudeController.text = _longitude!;
+      });
+    } catch (e) {
+      debugPrint('Failed to retrieve location: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Gagal mengambil lokasi Coffee Shop.")),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGettingLocation = false;
+        });
+      }
+    }
+  }
+
+  // 3. Fungsi tampil pilihan kategori
+  void _showCategorySelect() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return ListView(
+          shrinkWrap: true,
+          children: categories.map((cat) {
+            return ListTile(
+              title: Text(cat),
+              onTap: () {
+                setState(() {
+                  _category = cat;
+                });
+                Navigator.pop(context);
+              },
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  // Fungsi untuk menampilkan time picker jam buka
+  Future<void> _selectStartTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _startTime ?? TimeOfDay.now(),
+    );
+    if (picked != null) {
+      setState(() {
+        _startTime = picked;
+      });
+    }
+  }
+
+  // Fungsi untuk menampilkan time picker jam tutup
+  Future<void> _selectEndTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _endTime ?? TimeOfDay.now(),
+    );
+    if (picked != null) {
+      setState(() {
+        _endTime = picked;
+      });
+    }
+  }
+
+  // Fungsi untuk format waktu menjadi string HH:MM
+  String _formatTimeOfDay(TimeOfDay? time) {
+    if (time == null) return '--:--';
+    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+
+  // Fungsi untuk mendapatkan string jam operasional lengkap
+  String _getOperationalHoursString() {
+    if (_startTime == null || _endTime == null) return '';
+    return '${_formatTimeOfDay(_startTime)} - ${_formatTimeOfDay(_endTime)}';
+  }
+
+  // 4. Widget tampil gambar
+  Widget _buildImagePreview() {
+    if (_base64Image == null) {
+      return Container(
+        height: 180,
+        width: double.infinity,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade400),
+        ),
+        child: Text(
+          widget.isAdmin
+              ? 'Belum ada foto Coffee Shop dipilih'
+              : 'Belum ada foto ulasan dipilih (Opsional)',
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.memory(
+        base64Decode(_base64Image!),
+        height: 180,
+        width: double.infinity,
+        fit: BoxFit.cover,
+      ),
+    );
+  }
+
+  // 5. Widget tampil koordinat lokasi
+  Widget _buildLocationInfo() {
+    if (_latitude == null || _longitude == null) {
+      return const Text('Koordinat lokasi belum diambil');
+    }
+
+    return Text(
+      'Koordinat Terpasang:\nLat: $_latitude | Lng: $_longitude',
+      textAlign: TextAlign.center,
+      style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+    );
+  }
+
+  // 6. Fungsi submit Post atau Ulasan (Disesuaikan berdasarkan Role)
+  Future<void> _submitPost() async {
+    final adminId = FirebaseAuth.instance.currentUser?.uid;
+    final adminName = FirebaseAuth.instance.currentUser?.displayName;
+
+    if (widget.isAdmin) {
+      final isEditingNow = _isEditing && widget.coffeeShop != null;
+      // ---------------- LOGIKA SUBMIT ADMIN ----------------
+      if (_nameController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Masukkan nama coffee shop.')),
+        );
+        return;
+      }
+      if (_base64Image == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pilih foto terlebih dahulu.')),
+        );
+        return;
+      }
+      if (_category == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pilih kategori/suasana terlebih dahulu.'),
+          ),
+        );
+        return;
+      }
+      if (_startTime == null || _endTime == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pilih jam buka dan tutup.')),
+        );
+        return;
+      }
+
+      setState(() {
+        _isSubmitting = true;
+      });
+
+      try {
+        _updateLocationFromManualInput();
+
+        if (_latitude == null || _longitude == null) {
+          await _getLocation();
+        }
+
+        if (_latitude == null || _longitude == null) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Harap ambil atau masukkan lokasi Coffee Shop terlebih dahulu.',
+              ),
+            ),
+          );
+          return;
+        }
+
+        if (!_isValidCoordinate(_latitude) || !_isValidCoordinate(_longitude)) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Koordinat tidak valid. Pastikan latitude dan longitude berupa angka.',
+              ),
+            ),
+          );
+          return;
+        }
+
+        final postToSave = Post(
+          id: isEditingNow ? widget.coffeeShop!.id : null,
+          image: _base64Image,
+          name: _nameController.text.trim(),
+          description: _descriptionController.text.trim(),
+          category: _category,
+          latitude: _latitude,
+          longitude: _longitude,
+          operationalHours: _getOperationalHoursString(),
+          userId: adminId,
+          userFullName: adminName,
+        );
+
+        if (isEditingNow) {
+          await PostService.updatPost(postToSave);
+        } else {
+          await PostService.addPost(postToSave);
+        }
+
+        if (!mounted) return;
+
+        await sendNotificationToTopic(
+          "Yuk cek ${_nameController.text}! Tempat baru nih di Palembang.",
+          adminName ?? 'Admin',
+        );
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Data Coffee Shop berhasil disimpan")),
+        );
+        Navigator.of(context).pop(true);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Gagal menyimpan data: $e")));
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+          });
+        }
+      }
+    } else {
+      // ---------------- LOGIKA SUBMIT PENGGUNA (ULASAN) ----------------
+      if (_commentController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tuliskan komentar ulasan Anda.')),
+        );
+        return;
+      }
+      if (widget.coffeeShop == null || widget.coffeeShop!.id == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data Coffee Shop tidak valid.')),
+        );
+        return;
+      }
+
+      setState(() {
+        _isSubmitting = true;
+      });
+
+      try {
+        // Panggil service penampung sub-koleksi ulasan Anda di PostService
+        await PostService.addReviewToCoffeeShop(
+          coffeeShopId: widget.coffeeShop!.id!,
+          reviewData: {
+            'userId': adminId,
+            'userName': adminName ?? 'Pengguna Anonim',
+            'rating': _selectedRating,
+            'comment': _commentController.text.trim(),
+            'reviewImage': _base64Image ?? '',
+            'timestamp': DateTime.now().millisecondsSinceEpoch,
+          },
+        );
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Ulasan berhasil diterbitkan!")),
+        );
+        Navigator.of(context).pop(true);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Gagal mengirim ulasan: $e")));
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+          });
+        }
+      }
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // If a coffeeShop is provided and we're in admin mode, prefill fields for editing
+    if (widget.isAdmin && widget.coffeeShop != null) {
+      _isEditing = true;
+      final p = widget.coffeeShop!;
+      _base64Image = p.image;
+      _nameController.text = p.name ?? '';
+      _descriptionController.text = p.description ?? '';
+      _category = p.category;
+      _latitude = p.latitude;
+      _longitude = p.longitude;
+      _latitudeController.text = p.latitude ?? '';
+      _longitudeController.text = p.longitude ?? '';
+
+      // Parse operational hours (format: "HH:MM - HH:MM")
+      if (p.operationalHours != null && p.operationalHours!.isNotEmpty) {
+        try {
+          final parts = p.operationalHours!.split(' - ');
+          if (parts.length == 2) {
+            final startParts = parts[0].trim().split(':');
+            final endParts = parts[1].trim().split(':');
+            if (startParts.length == 2 && endParts.length == 2) {
+              _startTime = TimeOfDay(
+                hour: int.parse(startParts[0]),
+                minute: int.parse(startParts[1]),
+              );
+              _endTime = TimeOfDay(
+                hour: int.parse(endParts[0]),
+                minute: int.parse(endParts[1]),
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('Error parsing operational hours: $e');
+        }
+      }
+    }
+  }
+
+  // 7. Fungsi AI: Generate deskripsi menarik otomatis berdasarkan foto Coffee Shop
+  Future<void> _generateDescriptionWithAI() async {
+    if (_base64Image == null) return;
+    setState(() => _isGenerating = true);
+    try {
+      const apikey = 'AAIzaSyBSp-oScLyZPU8RVSbRK1j5TaRrkwUeJVs';
+      const url =
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=$apikey';
+
+      final body = jsonEncode({
+        "contents": [
+          {
+            "parts": [
+              {
+                "inlineData": {"mimeType": "image/jpeg", "data": _base64Image},
+              },
+              {
+                "text":
+                    "Berdasarkan foto coffee shop ini, identifikasi suasana utama "
+                    "dari daftar berikut: Indoor AC (WFC Friendly), Outdoor / Garden Vibe, Minimalis / Instagramable, Traditional / Manual Brew, atau Lainnya. "
+                    "Buat deskripsi promosi singkat dan estetik yang menarik bagi pengunjung di Palembang untuk datang ke coffee shop ini. "
+                    "Fokus pada interior/eksterior yang terlihat.\n\n"
+                    "Format output yang harus persis seperti ini :\n"
+                    "Kategori: [pilih satu dari daftar di atas]\n"
+                    "Deskripsi: [deskripsi estetik singkat]",
+              },
+            ],
+          },
+        ],
+      });
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: body,
+      );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        final text =
+            jsonResponse['candidates'][0]['content']['parts'][0]['text'];
+
+        if (text != null && text.isNotEmpty) {
+          final lines = text.trim().split('\n');
+          String? aicategory;
+          String? aidescription;
+
+          for (var line in lines) {
+            final lower = line.toLowerCase();
+            if (lower.startsWith('kategori:')) {
+              aicategory = line.substring(9).trim();
+            } else if (lower.startsWith('deskripsi:')) {
+              aidescription = line.substring(11).trim();
+            }
+          }
+
+          aidescription ??= text.trim();
+          setState(() {
+            if (categories.contains(aicategory)) {
+              _category = aicategory;
+            }
+            _descriptionController.text = aidescription!;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to generate AI description: $e');
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
+    }
+  }
+
+  // Fungsi kirim notifikasi topik (FCM)
+  Future<void> sendNotificationToTopic(String body, String senderName) async {
+    final url = Uri.parse(
+      'https://coffeeshop-finder-kohl.vercel.app/send-to-topic',
+    );
+    try {
+      await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "topic": "coffee-shop-palembang",
+          "title": "☕ Coffee Shop Baru!",
+          "body": body,
+          "senderName": senderName,
+          "senderPhotoUrl":
+              "https://static.vecteezy.com/system/resources/thumbnails/041/642/167/small_2x/ai-generated-portrait-of-handsome-smiling-young-man-with-folded-arms-isolated-free-png.png",
+        }),
+      );
+    } catch (e) {
+      debugPrint("Notification error: $e");
+    }
+  }
+
+  bool _isValidCoordinate(String? value) {
+    return value != null && value.isNotEmpty && double.tryParse(value) != null;
+  }
+
+  void _updateLocationFromManualInput() {
+    final lat = _latitudeController.text.trim();
+    final lng = _longitudeController.text.trim();
+    if (lat.isNotEmpty && lng.isNotEmpty) {
+      _latitude = lat;
+      _longitude = lng;
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _latitudeController.dispose();
+    _longitudeController.dispose();
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          widget.isAdmin
+              ? (_isEditing ? 'Edit Coffee Shop' : 'Tambah Coffee Shop Baru')
+              : 'Tambah Ulasan Baru',
+        ),
+        backgroundColor: Colors.brown,
+        foregroundColor: Colors.white,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildImagePreview(),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _isGenerating ? null : pickImageAndConvert,
+                  icon: const Icon(Icons.image),
+                  label: Text(
+                    widget.isAdmin
+                        ? (_isGenerating
+                              ? 'Menganalisis Foto...'
+                              : 'Pilih Foto')
+                        : 'Pilih Foto Ulasan',
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Tombol generator AI hanya muncul jika user adalah Admin & gambar sudah ada
+                if (widget.isAdmin && !_isGenerating && _base64Image != null)
+                  OutlinedButton.icon(
+                    onPressed: _isGenerating
+                        ? null
+                        : _generateDescriptionWithAI,
+                    icon: const Icon(Icons.auto_awesome),
+                    label: const Text('Ulangi AI Generate'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // ================= TAMPILAN KHUSUS ADMIN =================
+            if (widget.isAdmin) ...[
+              // Input Nama Coffee Shop
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nama Coffee Shop',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.coffee),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Input Jam Operasional dengan Time Picker
+              const Text(
+                'Jam Operasional',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _selectStartTime,
+                      icon: const Icon(Icons.schedule),
+                      label: Column(
+                        children: [
+                          const Text('Jam Buka'),
+                          Text(
+                            _formatTimeOfDay(_startTime),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.brown.shade100,
+                        foregroundColor: Colors.brown,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _selectEndTime,
+                      icon: const Icon(Icons.schedule),
+                      label: Column(
+                        children: [
+                          const Text('Jam Tutup'),
+                          Text(
+                            _formatTimeOfDay(_endTime),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.brown.shade100,
+                        foregroundColor: Colors.brown,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Pilih Kategori/Suasana
+              OutlinedButton(
+                onPressed: _isSubmitting ? null : _showCategorySelect,
+                child: const Text('Pilih Karakteristik / Suasana'),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _category ?? 'Belum memilih karakteristik',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.brown,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Input Deskripsi
+              TextField(
+                controller: _descriptionController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Deskripsi Coffee Shop',
+                  hintText:
+                      'Tuliskan deskripsi atau biarkan AI membuatkannya setelah foto diunggah',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Mengambil Lokasi Maps
+              OutlinedButton.icon(
+                onPressed: (_isSubmitting || _isGettingLocation)
+                    ? null
+                    : _getLocation,
+                icon: const Icon(Icons.pin_drop),
+                label: Text(
+                  _isGettingLocation
+                      ? 'Mengunci Koordinat...'
+                      : 'Ambil Lokasi Maps',
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Atau masukkan koordinat secara manual jika lokasi peta tidak tersedia',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _latitudeController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        signed: true,
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Latitude',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.location_on),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _latitude = value.trim();
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _longitudeController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        signed: true,
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Longitude',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.location_on),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _longitude = value.trim();
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _buildLocationInfo(),
+            ],
+
+            // ================= TAMPILAN KHUSUS PENGGUNA =================
+            if (!widget.isAdmin) ...[
+              Text(
+                "Berikan Ulasan untuk:\n${widget.coffeeShop?.name ?? 'Coffee Shop'}",
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.brown,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Selektor Rating Bintang
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  return IconButton(
+                    icon: Icon(
+                      index < _selectedRating ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                      size: 36,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _selectedRating = index + 1;
+                      });
+                    },
+                  );
+                }),
+              ),
+              const SizedBox(height: 16),
+
+              // Input Komentar Ulasan
+              TextField(
+                controller: _commentController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Komentar Ulasan',
+                  hintText:
+                      'Bagikan pengalaman Anda mengenai rasa kopi, pelayanan, atau tempat ini...',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 24),
+
+            // Tombol Submit Final
+            ElevatedButton(
+              onPressed: _isSubmitting ? null : _submitPost,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.brown.shade400,
+              ),
+              child: Text(
+                _isSubmitting
+                    ? 'Menyimpan...'
+                    : (widget.isAdmin
+                          ? (_isEditing
+                                ? 'Simpan Perubahan'
+                                : 'Publish Coffee Shop')
+                          : 'Kirim Ulasan'),
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
