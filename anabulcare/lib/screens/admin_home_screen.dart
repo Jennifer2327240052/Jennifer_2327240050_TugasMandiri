@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:anabulcare/models/post.dart'; // Sesuaikan jika nama modelnya coffee_shop.dart
-import 'package:anabulcare/services/post_service.dart'; // Sesuaikan dengan service Anda
+import 'package:anabulcare/models/post.dart';
+import 'package:anabulcare/services/post_service.dart';
 import 'package:anabulcare/screens/add_post_screen.dart';
-import 'package:anabulcare/screens/sign_in_screen.dart'; // Sesuaikan dengan halaman login Anda
-import 'package:anabulcare/widgets/post_list_item.dart'; // Sesuaikan dengan widget list item Anda
+import 'package:anabulcare/screens/sign_in_screen.dart';
+import 'package:anabulcare/widgets/post_list_item.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -55,7 +55,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             padding: const EdgeInsets.all(16),
             color: Color(0xFFEAF4F7),
             child: const Text(
-              "Kelola daftar coffee shop Anda yang terdaftar di Palembang melalui halaman ini.",
+              "Kelola daftar laporan hewan hilang Anda yang terdaftar melalui halaman ini.",
               style: TextStyle(fontSize: 13, color: Colors.grey),
             ),
           ),
@@ -63,7 +63,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           const Padding(
             padding: EdgeInsets.only(left: 16.0, top: 16.0, bottom: 8.0),
             child: Text(
-              "Daftar Coffee Shop Anda",
+              "Daftar Hewan Hilang",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
@@ -71,7 +71,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           // Memuat daftar postingan secara real-time
           Expanded(
             child: StreamBuilder<List<Post>>(
-              // Mengambil seluruh data post (ganti ke method stream yang sesuai di PostService Anda jika berbeda)
+              // Mengambil seluruh data post
               stream: PostService.getPostListByCategory(''),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -88,7 +88,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
                 final allPosts = snapshot.data ?? [];
 
-                // Memfilter agar yang muncul HANYA coffee shop yang dibuat oleh admin ini saja
+                // Memfilter agar yang muncul HANYA postingan yang dibuat oleh admin ini saja
                 final adminPosts = allPosts
                     .where((post) => post.userId == currentUserId)
                     .toList();
@@ -98,7 +98,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     child: Padding(
                       padding: EdgeInsets.all(16.0),
                       child: Text(
-                        "Anda belum mendaftarkan Coffee Shop apapun.\nKetuk tombol (+) di bawah untuk menambahkan.",
+                        "Anda belum mendaftarkan laporan hewan hilang apapun.\nKetuk tombol (+) di bawah untuk menambahkan.",
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey, height: 1.5),
                       ),
@@ -113,7 +113,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     final post = adminPosts[index];
 
                     // Menggunakan widget card bawaan proyek Anda untuk menampilkan item
-                    // IsOwner diset true agar admin bisa memiliki opsi edit/delete jika ada lokologika tersebut
                     return PostListItem(post: post, isOwner: true);
                   },
                 );
@@ -139,8 +138,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           );
 
           if (result == true) {
-            // Lakukan sesuatu atau refresh halaman jika diperlukan,
-            // namun karena menggunakan StreamBuilder data otomatis akan ter-update.
             setState(() {});
           }
         },
@@ -148,4 +145,3 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 }
-

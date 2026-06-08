@@ -4,6 +4,7 @@ import 'package:anabulcare/models/post.dart';
 import 'package:anabulcare/services/post_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Ditambahkan untuk TextInputFormatter
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -309,6 +310,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
           operationalHours: _getOperationalHoursString(),
           userId: adminId,
           userFullName: adminName,
+          ownerPhone: _ownerPhoneController.text.trim(),
         );
 
         if (isEditingNow) {
@@ -344,6 +346,22 @@ class _AddPostScreenState extends State<AddPostScreen> {
       }
     } else {
       // ---------------- LOGIKA SUBMIT PENGGUNA (ULASAN) ----------------
+      if (_ownerPhoneController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Masukkan nomor WhatsApp/Telepon terlebih dahulu.'),
+          ),
+        );
+        return;
+      }
+      if (_ownerPhoneController.text.trim().length > 13) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nomor WhatsApp/Telepon maksimal 13 angka.'),
+          ),
+        );
+        return;
+      }
       if (_nameController.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -384,6 +402,18 @@ class _AddPostScreenState extends State<AddPostScreen> {
           return;
         }
 
+        if (!_isValidCoordinate(_latitude) || !_isValidCoordinate(_longitude)) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Koordinat tidak valid. Pastikan latitude dan longitude berupa angka.',
+              ),
+            ),
+          );
+          return;
+        }
+
         final reportPost = Post(
           id: null,
           image: _base64Image,
@@ -395,6 +425,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
           operationalHours: DateTime.now().toLocal().toString(),
           userId: adminId,
           userFullName: adminName,
+          ownerPhone: _ownerPhoneController.text.trim(),
         );
 
         await PostService.addPost(reportPost);
@@ -810,11 +841,14 @@ class _AddPostScreenState extends State<AddPostScreen> {
               TextField(
                 controller: _ownerPhoneController,
                 keyboardType: TextInputType.phone,
+                maxLength: 13,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: const InputDecoration(
                   labelText: 'Nomor WhatsApp/Telepon',
                   hintText: 'Contoh: 081234567890',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.phone),
+                  counterText: '', // Sembunyikan counter text agar lebih rapi
                 ),
               ),
               const SizedBox(height: 16),
@@ -842,6 +876,80 @@ class _AddPostScreenState extends State<AddPostScreen> {
                   border: OutlineInputBorder(),
                 ),
               ),
+              const SizedBox(height: 16),
+
+              // Input Lokasi Maps Pengguna
+              const Text(
+                'Lokasi Terakhir Hewan',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A5F7A),
+                ),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: (_isSubmitting || _isGettingLocation)
+                    ? null
+                    : _getLocation,
+                icon: const Icon(Icons.pin_drop),
+                label: Text(
+                  _isGettingLocation
+                      ? 'Mengambil Lokasi...'
+                      : 'Ambil Lokasi Saat Ini',
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Atau masukkan koordinat secara manual jika GPS kurang akurat',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _latitudeController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        signed: true,
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Latitude',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.location_on),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _latitude = value.trim();
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _longitudeController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        signed: true,
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Longitude',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.location_on),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _longitude = value.trim();
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _buildLocationInfo(),
             ],
 
             const SizedBox(height: 24),

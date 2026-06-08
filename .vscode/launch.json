@@ -1,0 +1,28 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "anabulcare",
+            "cwd": "anabulcare",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "anabulcare (profile mode)",
+            "cwd": "anabulcare",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "anabulcare (release mode)",
+            "cwd": "anabulcare",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        }
+    ]
+}
