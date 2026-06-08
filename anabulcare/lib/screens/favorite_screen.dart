@@ -15,7 +15,7 @@ class FavoriteScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Coffee Shop Favorit'),
+        title: const Text('Laporan Hewan Favorit'),
         backgroundColor: Color(0xFF1A5F7A),
       ),
       body: currentUser == null
@@ -43,7 +43,7 @@ class FavoriteScreen extends StatelessWidget {
                 if (favoritePosts.isEmpty) {
                   return const Center(
                     child: Text(
-                      'Belum ada coffee shop favorit. Tambahkan dari halaman detail.',
+                      'Belum ada laporan hewan favorit. Tambahkan dari halaman detail.',
                     ),
                   );
                 }
@@ -108,7 +108,7 @@ class FavoriteScreen extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    post.name ?? 'Coffee Shop',
+                                    post.name ?? 'Anabulcare',
                                     style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -116,8 +116,8 @@ class FavoriteScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    post.operationalHours ??
-                                        'Jam operasional belum tersedia',
+                                    post.description ??
+                                        'Deskripsi belum tersedia',
                                     style: const TextStyle(
                                       fontSize: 13,
                                       color: Colors.grey,
@@ -137,4 +137,3 @@ class FavoriteScreen extends StatelessWidget {
     );
   }
 }
-

@@ -31,14 +31,11 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
       ),
       body: hasLocation
           ? FlutterMap(
-              options: MapOptions(
-                center: point,
-                zoom: 15,
-              ),
+              options: MapOptions(center: point, zoom: 15),
               children: [
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.coffeeshop_finder',
+                  userAgentPackageName: 'com.example.anabulcare',
                 ),
                 MarkerLayer(
                   markers: [
@@ -62,4 +59,3 @@ class _MapDetailScreenState extends State<MapDetailScreen> {
     );
   }
 }
-

@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:anabulcare/models/post.dart'; // Sesuaikan jika nama modelnya berubah menjadi coffee_shop.dart
 import 'package:anabulcare/screens/add_post_screen.dart';
 import 'package:anabulcare/screens/map_detail_screen.dart';
@@ -11,9 +10,7 @@ import 'package:share_plus/share_plus.dart';
 
 class DetailScreen extends StatefulWidget {
   final Post post;
-
   const DetailScreen({super.key, required this.post});
-
   @override
   State<DetailScreen> createState() => _DetailScreenState();
 }
@@ -21,7 +18,6 @@ class DetailScreen extends StatefulWidget {
 class _DetailScreenState extends State<DetailScreen> {
   bool _isFavorite = false;
   late final Stream<List<Map<String, dynamic>>> _reviewStream;
-
   @override
   void initState() {
     super.initState();
@@ -34,7 +30,6 @@ class _DetailScreenState extends State<DetailScreen> {
   Future<void> _loadFavoriteStatus() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null || widget.post.id == null) return;
-
     final isFavorite = await FavoriteService.isPostFavorite(
       currentUser.uid,
       widget.post.id!,
@@ -56,10 +51,8 @@ class _DetailScreenState extends State<DetailScreen> {
       );
       return;
     }
-
     final postId = widget.post.id;
     if (postId == null) return;
-
     if (_isFavorite) {
       await FavoriteService.removeFavorite(currentUser.uid, postId);
       if (!mounted) return;
@@ -109,18 +102,16 @@ class _DetailScreenState extends State<DetailScreen> {
 
   void _sharePost() {
     final text =
-        '☕ ${widget.post.name ?? 'Coffee Shop'}\n📌 Suasana: ${widget.post.category ?? '-'}\n🕒 Jam Buka: ${widget.post.operationalHours ?? '-'}\n\n${widget.post.description ?? ''}';
+        '☕ ${widget.post.name ?? 'Coffee Shop'}\n📌 Suasana: ${widget.post.category ?? '-'}\n\n${widget.post.description ?? ''}';
     Share.share(text);
   }
 
   @override
   Widget build(BuildContext context) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-
     // Cek apakah user yang membuka ini adalah admin pemilik postingan kedai kopi
     final isAdmin =
         currentUserId != null && widget.post.userId == currentUserId;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.post.name ?? 'Detail Coffee Shop'),
@@ -163,7 +154,6 @@ class _DetailScreenState extends State<DetailScreen> {
                   ),
                 ),
               ),
-
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -189,27 +179,6 @@ class _DetailScreenState extends State<DetailScreen> {
                       ),
                     ),
                   const SizedBox(height: 12),
-
-                  // --- 3. WAKTU / JAM OPERASIONAL ---
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.access_time_filled,
-                        size: 18,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Jam Operasional: ${widget.post.operationalHours?.trim().isNotEmpty == true ? widget.post.operationalHours : 'Tidak ditentukan'}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
                   // --- 4. LOKASI COORD MARKER ---
                   if (widget.post.latitude != null &&
                       widget.post.longitude != null)
@@ -231,7 +200,6 @@ class _DetailScreenState extends State<DetailScreen> {
                       ],
                     ),
                   const SizedBox(height: 16),
-
                   // --- 5. DESKRIPSI (HASIL GENERATE AI / MANUAL ADMIN) ---
                   const Text(
                     'Tentang Coffee Shop:',
@@ -252,7 +220,6 @@ class _DetailScreenState extends State<DetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
                   // --- 6. RUTE GOOGLE MAPS ---
                   SizedBox(
                     width: double.infinity,
@@ -279,12 +246,10 @@ class _DetailScreenState extends State<DetailScreen> {
                       ),
                     ),
                   ),
-
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8.0),
                     child: Divider(),
                   ),
-
                   if (currentUserId != null &&
                       currentUserId != widget.post.userId) ...[
                     // --- 7. INTERAKSI LIKE ---
@@ -307,7 +272,6 @@ class _DetailScreenState extends State<DetailScreen> {
                     ),
                     const Divider(),
                   ],
-
                   // --- 8. BAGIAN ULASAN PENGGUNA (TAMPIL UNTUK SEMUA, TOMBOL HANYA UNTUK PENGGUNA) ---
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -335,7 +299,6 @@ class _DetailScreenState extends State<DetailScreen> {
                                 ),
                               ),
                             );
-
                             if (result == true) {
                               // Segarkan data ulasan jika pengguna sukses memposting ulasan baru
                               setState(() {});
@@ -356,7 +319,6 @@ class _DetailScreenState extends State<DetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 10),
-
                   StreamBuilder<List<Map<String, dynamic>>>(
                     stream: _reviewStream,
                     builder: (context, snapshot) {
@@ -368,7 +330,6 @@ class _DetailScreenState extends State<DetailScreen> {
                           ),
                         );
                       }
-
                       final reviews = snapshot.data ?? [];
                       if (reviews.isEmpty) {
                         return const Padding(
@@ -379,7 +340,6 @@ class _DetailScreenState extends State<DetailScreen> {
                           ),
                         );
                       }
-
                       final reviewCount = reviews.length;
                       final totalRating = reviews.fold<double>(0.0, (
                         sum,
@@ -397,7 +357,6 @@ class _DetailScreenState extends State<DetailScreen> {
                       final averageRating = reviewCount > 0
                           ? totalRating / reviewCount
                           : 0.0;
-
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -451,7 +410,6 @@ class _DetailScreenState extends State<DetailScreen> {
                                 ? ratingValue.toInt()
                                 : int.tryParse(ratingValue?.toString() ?? '') ??
                                       0;
-
                             return Card(
                               margin: const EdgeInsets.symmetric(vertical: 6),
                               color: Colors.white,
@@ -468,7 +426,9 @@ class _DetailScreenState extends State<DetailScreen> {
                                         Row(
                                           children: [
                                             const CircleAvatar(
-                                              backgroundColor: Color(0xFF1A5F7A),
+                                              backgroundColor: Color(
+                                                0xFF1A5F7A,
+                                              ),
                                               radius: 14,
                                               child: Icon(
                                                 Icons.person,
@@ -527,4 +487,3 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 }
-
