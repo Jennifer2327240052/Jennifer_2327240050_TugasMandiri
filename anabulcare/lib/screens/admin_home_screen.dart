@@ -17,9 +17,6 @@ class AdminHomeScreen extends StatefulWidget {
 class _AdminHomeScreenState extends State<AdminHomeScreen> {
   @override
   Widget build(BuildContext context) {
-    // Mengambil ID Admin yang sedang login saat ini
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -55,7 +52,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             padding: const EdgeInsets.all(16),
             color: Color(0xFFEAF4F7),
             child: const Text(
-              "Kelola daftar laporan hewan hilang Anda yang terdaftar melalui halaman ini.",
+              "Kelola seluruh daftar laporan hewan hilang yang terdaftar melalui halaman ini.",
               style: TextStyle(fontSize: 13, color: Colors.grey),
             ),
           ),
@@ -86,19 +83,15 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   );
                 }
 
-                final allPosts = snapshot.data ?? [];
-
-                // Memfilter agar yang muncul HANYA postingan yang dibuat oleh admin ini saja
-                final adminPosts = allPosts
-                    .where((post) => post.userId == currentUserId)
-                    .toList();
+                // Mengambil seluruh data post tanpa filter userId agar tersinkronisasi dengan UserHomeScreen
+                final adminPosts = snapshot.data ?? [];
 
                 if (adminPosts.isEmpty) {
                   return const Center(
                     child: Padding(
                       padding: EdgeInsets.all(16.0),
                       child: Text(
-                        "Anda belum mendaftarkan laporan hewan hilang apapun.\nKetuk tombol (+) di bawah untuk menambahkan.",
+                        "Belum ada laporan hewan hilang yang terdaftar.\nKetuk tombol (+) di bawah untuk menambahkan.",
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey, height: 1.5),
                       ),
@@ -113,6 +106,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     final post = adminPosts[index];
 
                     // Menggunakan widget card bawaan proyek Anda untuk menampilkan item
+                    // isOwner diatur true agar admin memiliki hak akses edit/hapus pada semua laporan
                     return PostListItem(post: post, isOwner: true);
                   },
                 );

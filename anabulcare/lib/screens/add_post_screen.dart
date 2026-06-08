@@ -35,8 +35,6 @@ class _AddPostScreenState extends State<AddPostScreen> {
   String? _latitude;
   String? _longitude;
   String? _category;
-  TimeOfDay? _startTime; // Jam buka (hanya untuk admin lama)
-  TimeOfDay? _endTime; // Jam tutup (hanya untuk admin lama)
   bool _isSubmitting = false;
   bool _isGettingLocation = false;
   bool _isGenerating = false;
@@ -148,44 +146,6 @@ class _AddPostScreenState extends State<AddPostScreen> {
     );
   }
 
-  // Fungsi untuk menampilkan time picker jam buka
-  Future<void> _selectStartTime() async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: _startTime ?? TimeOfDay.now(),
-    );
-    if (picked != null) {
-      setState(() {
-        _startTime = picked;
-      });
-    }
-  }
-
-  // Fungsi untuk menampilkan time picker jam tutup
-  Future<void> _selectEndTime() async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: _endTime ?? TimeOfDay.now(),
-    );
-    if (picked != null) {
-      setState(() {
-        _endTime = picked;
-      });
-    }
-  }
-
-  // Fungsi untuk format waktu menjadi string HH:MM
-  String _formatTimeOfDay(TimeOfDay? time) {
-    if (time == null) return '--:--';
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-  }
-
-  // Fungsi untuk mendapatkan string jam operasional lengkap
-  String _getOperationalHoursString() {
-    if (_startTime == null || _endTime == null) return '';
-    return '${_formatTimeOfDay(_startTime)} - ${_formatTimeOfDay(_endTime)}';
-  }
-
   // 4. Widget tampil gambar
   Widget _buildImagePreview() {
     if (_base64Image == null) {
@@ -262,7 +222,6 @@ class _AddPostScreenState extends State<AddPostScreen> {
         );
         return;
       }
-      // Lost animal reports do not require jam operasional
 
       setState(() {
         _isSubmitting = true;
@@ -307,7 +266,8 @@ class _AddPostScreenState extends State<AddPostScreen> {
           category: _category,
           latitude: _latitude,
           longitude: _longitude,
-          operationalHours: _getOperationalHoursString(),
+          operationalHours:
+              '', // Jam operasional dikosongkan karena tidak dipakai
           userId: adminId,
           userFullName: adminName,
           ownerPhone: _ownerPhoneController.text.trim(),
@@ -468,33 +428,10 @@ class _AddPostScreenState extends State<AddPostScreen> {
       _latitudeController.text = p.latitude ?? '';
       _longitudeController.text = p.longitude ?? '';
       _ownerPhoneController.text = p.ownerPhone ?? '';
-
-      // Parse operational hours (format: "HH:MM - HH:MM")
-      if (p.operationalHours != null && p.operationalHours!.isNotEmpty) {
-        try {
-          final parts = p.operationalHours!.split(' - ');
-          if (parts.length == 2) {
-            final startParts = parts[0].trim().split(':');
-            final endParts = parts[1].trim().split(':');
-            if (startParts.length == 2 && endParts.length == 2) {
-              _startTime = TimeOfDay(
-                hour: int.parse(startParts[0]),
-                minute: int.parse(startParts[1]),
-              );
-              _endTime = TimeOfDay(
-                hour: int.parse(endParts[0]),
-                minute: int.parse(endParts[1]),
-              );
-            }
-          }
-        } catch (e) {
-          debugPrint('Error parsing operational hours: $e');
-        }
-      }
     }
   }
 
-  // 7. Fungsi AI: Generate deskripsi menarik otomatis berdasarkan foto
+  // 7. Fungsi AI: Generate deskripsi menarik otomatis berdasarkan foto hewan hilang
   Future<void> _generateDescriptionWithAI() async {
     if (_base64Image == null) return;
     setState(() => _isGenerating = true);
@@ -512,13 +449,13 @@ class _AddPostScreenState extends State<AddPostScreen> {
               },
               {
                 "text":
-                    "Berdasarkan foto coffee shop ini, identifikasi suasana utama "
-                    "dari daftar berikut: Indoor AC (WFC Friendly), Outdoor / Garden Vibe, Minimalis / Instagramable, Traditional / Manual Brew, atau Lainnya. "
-                    "Buat deskripsi promosi singkat dan estetik yang menarik bagi pengunjung di Palembang untuk datang ke coffee shop ini. "
-                    "Fokus pada interior/eksterior yang terlihat.\n\n"
-                    "Format output yang harus persis seperti ini :\n"
-                    "Kategori: [pilih satu dari daftar di atas]\n"
-                    "Deskripsi: [deskripsi estetik singkat]",
+                    "Berdasarkan foto hewan ini, identifikasi jenis hewannya "
+                    "dari daftar kategori berikut: Kucing, Anjing, Burung, Kelinci, Reptil, atau Lainnya. "
+                    "Buat deskripsi ciri-ciri fisik singkat, jelas, dan spesifik (seperti warna bulu, jenis ras jika terlihat, corak, atau tanda unik lainnya) "
+                    "yang dapat membantu mengenali hewan hilang ini.\n\n"
+                    "Format output harus persis seperti ini (tanpa simbol markdown seperti asteriks *):\n"
+                    "Kategori: [Pilih salah satu dari: Kucing / Anjing / Burung / Kelinci / Reptil / Lainnya]\n"
+                    "Deskripsi: [Deskripsi ciri-ciri fisik singkat]",
               },
             ],
           },
@@ -546,7 +483,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
             if (lower.startsWith('kategori:')) {
               aicategory = line.substring(9).trim();
             } else if (lower.startsWith('deskripsi:')) {
-              aidescription = line.substring(11).trim();
+              aidescription = line.substring(10).trim();
             }
           }
 
@@ -577,7 +514,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           "topic": "coffee-shop-palembang",
-          "title": "☕ Coffee Shop Baru!",
+          "title": "☕ Laporan Hewan Hilang Baru!",
           "body": body,
           "senderName": senderName,
           "senderPhotoUrl":
@@ -671,63 +608,6 @@ class _AddPostScreenState extends State<AddPostScreen> {
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.pets),
                 ),
-              ),
-              const SizedBox(height: 16),
-
-              // Input Jam Operasional dengan Time Picker
-              const Text(
-                'Jam Operasional',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _selectStartTime,
-                      icon: const Icon(Icons.schedule),
-                      label: Column(
-                        children: [
-                          const Text('Jam Buka'),
-                          Text(
-                            _formatTimeOfDay(_startTime),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFFD7EBF1),
-                        foregroundColor: Color(0xFF1A5F7A),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _selectEndTime,
-                      icon: const Icon(Icons.schedule),
-                      label: Column(
-                        children: [
-                          const Text('Jam Tutup'),
-                          Text(
-                            _formatTimeOfDay(_endTime),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFFD7EBF1),
-                        foregroundColor: Color(0xFF1A5F7A),
-                      ),
-                    ),
-                  ),
-                ],
               ),
               const SizedBox(height: 16),
 
